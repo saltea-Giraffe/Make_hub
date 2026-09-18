@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <!-- viewport-fit=cover: iPhone のノッチ／ホームバー領域まで背景を広げる -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="description" content="よく使う Web サービスへのショートカットを 1 ページにまとめるポータル" />
+    <!-- モバイルブラウザのアドレスバー色（ライト/ダークで切替） -->
+    <meta name="theme-color" content="#f9fafb" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#111827" media="(prefers-color-scheme: dark)" />
+    <!-- ホーム画面に追加したときの表示設定 -->
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="Make HUB" />
+    <!-- 電話番号の自動リンク化を抑止（URL 文字列が電話番号扱いされるのを防ぐ） -->
+    <meta name="format-detection" content="telephone=no" />
+    <title>Make HUB</title>
+    <!-- ファビコン（将来的に差し替え可） -->
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🔷</text></svg>" />
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

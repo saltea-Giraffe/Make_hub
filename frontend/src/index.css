@@ -1,0 +1,84 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    /* iOS で横スクロールが出たときにページ全体が拡大されるのを防ぐ */
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    @apply bg-gray-50 text-gray-900 antialiased dark:bg-gray-900 dark:text-gray-100;
+    /* 長いURLなどがはみ出して横スクロールを生むのを防ぐ */
+    overflow-wrap: break-word;
+  }
+
+  /* タップ時の青いハイライトを消し、ダブルタップズームの遅延をなくす */
+  button,
+  a,
+  [role='button'] {
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+  }
+
+  /*
+   * iOS Safari はフォント 16px 未満の入力欄にフォーカスすると自動ズームする。
+   * モバイル幅では 16px を強制してズームを防ぐ（PC幅は従来どおり）。
+   */
+  @media (max-width: 639px) {
+    input,
+    select,
+    textarea {
+      font-size: 16px;
+    }
+  }
+
+  /* スクロールバーを細くして見やすく */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    @apply bg-gray-100;
+  }
+  ::-webkit-scrollbar-thumb {
+    @apply bg-gray-300 rounded-full;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-gray-400;
+  }
+}
+
+@keyframes fadeSlideIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0);   }
+}
+
+@layer utilities {
+  /* テキストの2行クランプ（line-clamp-2 が対応されていない環境用） */
+  .line-clamp-2 {
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+  }
+
+  /* ノッチ／ホームバーを避けるための安全領域ユーティリティ */
+  .pb-safe { padding-bottom: env(safe-area-inset-bottom); }
+  .pt-safe { padding-top: env(safe-area-inset-top); }
+  .px-safe {
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
+  }
+
+  /*
+   * タッチ端末では hover が使えないため、hover 前提で隠している操作ボタンを
+   * 常に表示する。マウス環境では従来どおりホバーで出す。
+   */
+  @media (hover: none) {
+    .touch-always-visible {
+      opacity: 1 !important;
+    }
+  }
+}

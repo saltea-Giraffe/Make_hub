@@ -1,0 +1,18 @@
+{
+  "name": "make-hub",
+  "version": "1.0.0",
+  "private": true,
+  "workspaces": [
+    "backend",
+    "frontend"
+  ],
+  "scripts": {
+    "dev": "concurrently -n \"backend,frontend\" -c \"blue,green\" \"npm run dev --workspace=backend\" \"npm run dev --workspace=frontend\"",
+    "build": "npm run build --workspace=backend && npm run build --workspace=frontend",
+    "release": "powershell -ExecutionPolicy Bypass -File scripts/build-release.ps1",
+    "seed": "npm run seed --workspace=backend --"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  }
+}

@@ -1,0 +1,18 @@
+node_modules/
+dist/
+.env
+backend/data/
+*.db
+*.db-wal
+*.db-shm
+frontend/dist/
+.DS_Store
+Thumbs.db
+
+# リリースビルド成果物
+build/
+dist-installer/
+installer/tools/nssm.exe
+
+# Claude Code のローカル設定
+.claude/settings.local.json
