@@ -1,16 +1,30 @@
 import { useState, useEffect } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
-import { LayoutGrid, Eye, EyeOff, LogIn, UserPlus } from 'lucide-react';
+import { useNavigate, useLocation, useSearchParams, Navigate } from 'react-router-dom';
+import { LayoutGrid, Eye, EyeOff, LogIn, UserPlus, KeyRound } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
+import { fetchAuthProviders } from '../api/client';
+import type { AuthProviders } from '../types';
 
 type Tab = 'login' | 'register';
 
 export default function LoginPage() {
-  const { login, register, isAuthenticated } = useAuth();
+  const { login, register, isAuthenticated, needsSetup } = useAuth();
   const navigate  = useNavigate();
   const location  = useLocation();
+  const [searchParams] = useSearchParams();
 
   const [tab, setTab] = useState<Tab>('login');
+
+  // SSO 設定の有無（バックエンドが有効と答えた方式だけボタンを出す）
+  const [providers, setProviders] = useState<AuthProviders | null>(null);
+  // SSO 失敗時、バックエンドは /login?sso_error=... に戻してくる
+  const ssoError = searchParams.get('sso_error');
+
+  useEffect(() => {
+    fetchAuthProviders()
+      .then(res => setProviders(res.data ?? null))
+      .catch(() => setProviders(null));  // 取得できなければ SSO ボタンを出さない
+  }, []);
 
   // ログイン用フォーム
   const [loginForm, setLoginForm] = useState({ username: '', password: '' });
@@ -93,6 +107,11 @@ export default function LoginPage() {
     }
   };
 
+  // 管理者がまだ居ない場合は、ログインではなく初期セットアップへ誘導する
+  if (needsSetup) return <Navigate to="/setup" replace />;
+
+  const hasSso = !!providers?.oidc || !!providers?.saml;
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-slate-100 flex items-center justify-center p-4 py-10 px-safe">
       <div className="w-full max-w-sm">
@@ -105,6 +124,13 @@ export default function LoginPage() {
           <h1 className="text-2xl font-bold text-gray-900">Make HUB</h1>
           <p className="text-sm text-gray-500 mt-1">よく使うサービスへのアクセスをまとめて管理</p>
         </div>
+
+        {/* ─── SSO エラー ────────────────────────────────────── */}
+        {ssoError && (
+          <div className="mb-4 bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg px-4 py-3">
+            {ssoError}
+          </div>
+        )}
 
         {/* ─── カード ────────────────────────────────────────── */}
         <div className="bg-white rounded-2xl shadow-lg border border-gray-200 overflow-hidden">
@@ -298,6 +324,33 @@ export default function LoginPage() {
                   作成されたアカウントのロールは「一般ユーザー」になります
                 </p>
               </form>
+            )}
+
+            {/* ══════════════ SSO ログイン ══════════════ */}
+            {hasSso && (
+              <div className="mt-6 pt-5 border-t border-gray-100 space-y-2">
+                <p className="text-center text-xs text-gray-400 mb-3">または</p>
+
+                {providers?.oidc && (
+                  <a
+                    href={providers.oidc.url}
+                    className="w-full flex items-center justify-center gap-2 py-3 border border-gray-300 rounded-lg font-medium text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                  >
+                    <KeyRound className="w-4 h-4 text-gray-500" />
+                    {providers.oidc.label}
+                  </a>
+                )}
+
+                {providers?.saml && (
+                  <a
+                    href={providers.saml.url}
+                    className="w-full flex items-center justify-center gap-2 py-3 border border-gray-300 rounded-lg font-medium text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                  >
+                    <KeyRound className="w-4 h-4 text-gray-500" />
+                    {providers.saml.label}
+                  </a>
+                )}
+              </div>
             )}
           </div>
         </div>

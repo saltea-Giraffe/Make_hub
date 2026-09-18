@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
-import { Upload } from 'lucide-react';
+import { Upload, Wand2, Check, AlertCircle } from 'lucide-react';
 import Modal from '../components/Modal';
-import { createApp, updateApp, fetchCategories, uploadIcon } from '../api/client';
+import { createApp, updateApp, fetchCategories, uploadIcon, fetchOgp } from '../api/client';
 import type { App, AppFormData, Category } from '../types';
 
 // よく使う絵文字プリセット
@@ -38,6 +38,11 @@ export default function AppFormModal({ isOpen, app, onClose, onSaved }: Props) {
   const [saving, setSaving]     = useState(false);
   const [uploading, setUploading] = useState(false);
   const [iconTab, setIconTab]   = useState<IconTab>('emoji');
+  // OGP 自動取得の進捗表示
+  const [ogpState, setOgpState] = useState<
+    { status: 'idle' } | { status: 'loading' } |
+    { status: 'done'; filled: string[] } | { status: 'error'; message: string }
+  >({ status: 'idle' });
   const fileRef = useRef<HTMLInputElement>(null);
 
   // カテゴリ取得
@@ -65,6 +70,7 @@ export default function AppFormModal({ isOpen, app, onClose, onSaved }: Props) {
       setIconTab('emoji');
     }
     setErrors({});
+    setOgpState({ status: 'idle' });
   }, [app, isOpen]);
 
   const set = <K extends keyof AppFormData>(key: K, value: AppFormData[K]) =>
@@ -100,6 +106,56 @@ export default function AppFormModal({ isOpen, app, onClose, onSaved }: Props) {
       setErrors({ _global: msg ?? '保存に失敗しました' });
     } finally {
       setSaving(false);
+    }
+  };
+
+  /**
+   * URL から OGP 情報を取得してフォームを埋める。
+   * 取得できた項目だけを上書きし、取れなかった項目は今の入力を残す。
+   */
+  const handleFetchOgp = async () => {
+    const url = form.url.trim();
+    if (!url || url === 'https://') {
+      setOgpState({ status: 'error', message: '先に URL を入力してください' });
+      return;
+    }
+    try {
+      new URL(url);
+    } catch {
+      setOgpState({ status: 'error', message: '有効なURL形式で入力してください' });
+      return;
+    }
+
+    setOgpState({ status: 'loading' });
+    try {
+      const res = await fetchOgp(url);
+      const data = res.data;
+      if (!data) throw new Error('情報を取得できませんでした');
+
+      const filled: string[] = [];
+      if (data.title) {
+        set('name', data.title);
+        filled.push('アプリ名');
+      }
+      if (data.description) {
+        set('description', data.description);
+        filled.push('説明文');
+      }
+      if (data.image) {
+        setIconTab('url');
+        set('icon_type', 'url');
+        set('icon_value', data.image);
+        filled.push('アイコン');
+      }
+
+      setOgpState(filled.length
+        ? { status: 'done', filled }
+        : { status: 'error', message: 'このページからは情報を取得できませんでした' });
+    } catch (err: unknown) {
+      const message =
+        (err as { response?: { data?: { error?: string } } })?.response?.data?.error
+        ?? (err instanceof Error ? err.message : '情報を取得できませんでした');
+      setOgpState({ status: 'error', message });
     }
   };
 
@@ -157,16 +213,43 @@ export default function AppFormModal({ isOpen, app, onClose, onSaved }: Props) {
           <label className="block text-sm font-medium text-gray-700 mb-1">
             URL <span className="text-red-500">*</span>
           </label>
-          <input
-            type="text"
-            value={form.url}
-            onChange={e => set('url', e.target.value)}
-            placeholder="https://example.com"
-            className={`w-full px-3 py-2 border rounded-lg text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-              errors.url ? 'border-red-400 bg-red-50' : 'border-gray-300'
-            }`}
-          />
+          <div className="flex flex-col sm:flex-row gap-2">
+            <input
+              type="text"
+              value={form.url}
+              onChange={e => { set('url', e.target.value); setOgpState({ status: 'idle' }); }}
+              placeholder="https://example.com"
+              inputMode="url"
+              className={`flex-1 min-w-0 px-3 py-2 border rounded-lg text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                errors.url ? 'border-red-400 bg-red-50' : 'border-gray-300'
+              }`}
+            />
+            <button
+              type="button"
+              onClick={handleFetchOgp}
+              disabled={ogpState.status === 'loading'}
+              title="リンク先のタイトル・説明・アイコンを取得して自動入力します"
+              className="flex items-center justify-center gap-1.5 px-3 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-60 flex-shrink-0"
+            >
+              <Wand2 className="w-4 h-4" />
+              {ogpState.status === 'loading' ? '取得中...' : '自動入力'}
+            </button>
+          </div>
           {errors.url && <p className="mt-1 text-xs text-red-600">{errors.url}</p>}
+
+          {/* OGP 取得結果 */}
+          {ogpState.status === 'done' && (
+            <p className="mt-1.5 flex items-center gap-1.5 text-xs text-green-700">
+              <Check className="w-3.5 h-3.5 flex-shrink-0" />
+              {ogpState.filled.join('・')}を自動入力しました
+            </p>
+          )}
+          {ogpState.status === 'error' && (
+            <p className="mt-1.5 flex items-start gap-1.5 text-xs text-amber-700">
+              <AlertCircle className="w-3.5 h-3.5 flex-shrink-0 mt-px" />
+              {ogpState.message}
+            </p>
+          )}
         </div>
 
         {/* ─── 説明文 ─────────────────────────────────────── */}

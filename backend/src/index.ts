@@ -1,6 +1,8 @@
 import express, { Request, Response, NextFunction } from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
+import http from 'http';
+import https from 'https';
 import path from 'path';
 import fs from 'fs';
 import dotenv from 'dotenv';
@@ -17,7 +19,10 @@ if (fs.existsSync(envFromAppDir)) {
 }
 
 import { initializeSchema } from './db/schema';
+import { seedDefaults } from './db/seedDefaults';
 import { DATA_DIR } from './db/connection';
+import { PORT, HTTPS, PUBLIC_URL, isOidcConfigured, isSamlConfigured } from './config';
+import { loadTlsMaterial } from './https';
 import appsRouter from './routes/apps';
 import categoriesRouter from './routes/categories';
 import uploadRouter from './routes/upload';
@@ -26,17 +31,36 @@ import usersRouter from './routes/users';
 import announcementsRouter from './routes/announcements';
 import favoritesRouter from './routes/favorites';
 import accessLogsRouter from './routes/accessLogs';
+import ogpRouter from './routes/ogp';
 import { requireAdmin } from './middleware/auth';
 import { errorHandler, notFound } from './middleware/errorHandler';
 
-dotenv.config();
-
 const app = express();
-const PORT         = process.env.PORT         ?? 3001;
 const FRONTEND_URL = process.env.FRONTEND_URL ?? 'http://localhost:5173';
 
-// ─── DB初期化（デフォルト管理者作成も含む） ──────────────────────
+/**
+ * バージョンは package.json を単一の出典にする。
+ * 配布時は index.js と package.json が同階層、開発時は dist/ の一つ上に置かれる。
+ */
+function readVersion(): string {
+  const candidates = [
+    path.join(__dirname, 'package.json'),
+    path.join(__dirname, '..', 'package.json'),
+  ];
+  for (const file of candidates) {
+    try {
+      const pkg = JSON.parse(fs.readFileSync(file, 'utf-8')) as { version?: unknown };
+      if (typeof pkg.version === 'string') return pkg.version;
+    } catch { /* 次の候補を試す */ }
+  }
+  return '0.0.0';
+}
+
+const VERSION = readVersion();
+
+// ─── DB初期化 + 初回サンプルデータ投入 ────────────────────────────
 initializeSchema();
+seedDefaults();
 
 // ─── セキュリティミドルウェア ─────────────────────────────────────
 app.use(
@@ -44,6 +68,9 @@ app.use(
     crossOriginResourcePolicy: { policy: 'cross-origin' },
     // HTTP運用時に upgrade-insecure-requests が付くと CSS/JS が HTTPS で読まれて失敗する
     contentSecurityPolicy: false,
+    // HSTS は既定で無効。自己署名証明書や HTTP に戻す可能性のある環境で
+    // 有効にすると、そのホストに HTTP で戻れなくなるため。
+    hsts: HTTPS.hsts ? undefined : false,
   })
 );
 
@@ -52,6 +79,7 @@ app.use(
 const corsOrigin = process.env.NODE_ENV === 'production' ? true : FRONTEND_URL;
 app.use(cors({ origin: corsOrigin, credentials: true }));
 app.use(express.json());
+// SAML の HTTP-POST バインディングは application/x-www-form-urlencoded で届く
 app.use(express.urlencoded({ extended: true }));
 
 // ─── アップロードファイル配信 ──────────────────────────────────────
@@ -101,12 +129,16 @@ app.use('/api/favorites', favoritesRouter);
 // ─── アクセスログAPI ──────────────────────────────────────────────
 app.use('/api/access-logs', accessLogsRouter);
 
+// ─── OGP取得API ───────────────────────────────────────────────────
+// サーバーから任意のURLへ接続するため管理者のみに限定する
+app.use('/api/ogp', requireAdmin, ogpRouter);
+
 // ─── ヘルスチェック ────────────────────────────────────────────────
 app.get('/api/health', (_req, res) => {
   res.json({
     success: true,
     message: 'Make HUB API is running',
-    version: '1.0.0',
+    version: VERSION,
     environment: process.env.NODE_ENV ?? 'development',
   });
 });
@@ -130,10 +162,60 @@ app.use(notFound);
 app.use(errorHandler);
 
 // ─── サーバー起動 ──────────────────────────────────────────────────
-app.listen(PORT, () => {
-  console.log(`🚀 Make HUB API  →  http://localhost:${PORT}`);
+
+/** HTTP で来たリクエストを HTTPS へ 301 リダイレクトするだけのハンドラ */
+function httpsRedirectHandler(req: http.IncomingMessage, res: http.ServerResponse): void {
+  const hostHeader = req.headers.host ?? 'localhost';
+  const hostname = hostHeader.split(':')[0];
+  const port = HTTPS.port === 443 ? '' : `:${HTTPS.port}`;
+  res.writeHead(301, { Location: `https://${hostname}${port}${req.url ?? '/'}` });
+  res.end();
+}
+
+function logStartup(scheme: 'http' | 'https', port: number): void {
+  console.log(`🚀 Make HUB v${VERSION}  →  ${scheme}://localhost:${port}`);
+}
+
+function start(): void {
+  let tlsFailed = false;
+
+  if (HTTPS.enabled) {
+    try {
+      const tls = loadTlsMaterial();
+      https
+        .createServer({ key: tls.key, cert: tls.cert, ca: tls.ca }, app)
+        .listen(HTTPS.port, () => {
+          logStartup('https', HTTPS.port);
+          if (tls.selfSigned) {
+            console.log('   ⚠️  自己署名証明書のため、ブラウザに警告が表示されます');
+            console.log(`   証明書の保存先: ${tls.directory}`);
+          }
+        });
+    } catch (err) {
+      tlsFailed = true;
+      console.error('[エラー] HTTPS を開始できませんでした:', err instanceof Error ? err.message : err);
+      console.error('         HTTP のみで起動します。証明書の設定を見直してください。');
+    }
+  }
+
+  const httpsRunning = HTTPS.enabled && !tlsFailed;
+
+  // HTTPS 稼働中かつリダイレクト設定のときは、HTTP は誘導だけを行う
+  if (httpsRunning && HTTPS.redirectHttp) {
+    http.createServer(httpsRedirectHandler).listen(PORT, () => {
+      console.log(`↪️  http://localhost:${PORT} → https://localhost:${HTTPS.port} にリダイレクトします`);
+    });
+  } else {
+    http.createServer(app).listen(PORT, () => logStartup('http', PORT));
+  }
+
   console.log(`   Frontend origin     →  ${FRONTEND_URL}`);
   console.log(`   Data directory      →  ${DATA_DIR}`);
-});
+  if (PUBLIC_URL) console.log(`   Public URL          →  ${PUBLIC_URL}`);
+  if (isOidcConfigured()) console.log('   OIDC (SSO)          →  有効');
+  if (isSamlConfigured()) console.log('   SAML (SSO)          →  有効');
+}
+
+start();
 
 export default app;

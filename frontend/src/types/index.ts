@@ -66,3 +66,19 @@ export type AppFormData = {
   display_order: number;
   is_enabled: 0 | 1;
 };
+
+/** リンク先から取得した OGP 情報 */
+export interface OgpMetadata {
+  url: string;
+  title: string | null;
+  description: string | null;
+  image: string | null;
+  site_name: string | null;
+}
+
+/** ログイン画面に出す認証手段 */
+export interface AuthProviders {
+  local: boolean;
+  oidc: { label: string; url: string } | null;
+  saml: { label: string; url: string } | null;
+}

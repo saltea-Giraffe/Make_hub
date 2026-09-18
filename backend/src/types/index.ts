@@ -36,16 +36,23 @@ export interface ApiResponse<T> {
   message?: string;
 }
 
-// 将来拡張: ユーザー・ロール
+/** 認証方式。SSO ユーザーは password_hash を持たない */
+export type AuthProvider = 'local' | 'oidc' | 'saml';
+
 export interface User {
   id: number;
   username: string;
-  password_hash: string;
+  /** SSO 専用アカウントは null */
+  password_hash: string | null;
   role: 'admin' | 'user';
   is_active: 0 | 1;
   display_name: string | null;
   avatar_type: 'emoji' | 'url' | 'upload' | 'initial';
   avatar_value: string | null;
+  email: string | null;
+  auth_provider: AuthProvider;
+  /** IdP 側のユーザー識別子（local の場合は null） */
+  external_id: string | null;
   created_at: string;
   last_login_at: string | null;
 }
@@ -58,4 +65,14 @@ export interface PublicUser {
   display_name: string | null;
   avatar_type: 'emoji' | 'url' | 'upload' | 'initial';
   avatar_value: string | null;
+  auth_provider: AuthProvider;
+}
+
+/** リンクのURLから取得した OGP 情報 */
+export interface OgpMetadata {
+  url: string;
+  title: string | null;
+  description: string | null;
+  image: string | null;
+  site_name: string | null;
 }

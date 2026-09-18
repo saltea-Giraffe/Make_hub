@@ -1,5 +1,5 @@
 import axios from 'axios';
-import type { App, AppFormData, Category, Announcement, AppAccessStat, ApiResponse } from '../types';
+import type { App, AppFormData, Category, Announcement, AppAccessStat, OgpMetadata, AuthProviders, ApiResponse } from '../types';
 
 /**
  * Axiosインスタンス
@@ -115,3 +115,18 @@ export const uploadIcon = (file: File): Promise<ApiResponse<{ url: string; filen
     )
     .then(r => r.data);
 };
+
+// ─── OGP ──────────────────────────────────────────────────────────
+
+/**
+ * リンク先の OGP 情報（タイトル・説明・画像）を取得する。
+ * サーバー側で外部サイトを読みに行くため、既定より長めのタイムアウトを取る。
+ */
+export const fetchOgp = (url: string): Promise<ApiResponse<OgpMetadata>> =>
+  api.get<ApiResponse<OgpMetadata>>('/ogp', { params: { url }, timeout: 15000 }).then(r => r.data);
+
+// ─── 認証プロバイダ ────────────────────────────────────────────────
+
+/** ログイン画面に出す認証手段（SSO が設定されているか）を取得する */
+export const fetchAuthProviders = (): Promise<ApiResponse<AuthProviders>> =>
+  api.get<ApiResponse<AuthProviders>>('/auth/providers').then(r => r.data);

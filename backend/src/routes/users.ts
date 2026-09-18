@@ -196,7 +196,7 @@ router.post(
 
     const hash = await bcrypt.hash(password, SALT_ROUNDS);
     const result = db.prepare(
-      "INSERT INTO users (username, password_hash, role) VALUES (?, ?, ?)"
+      "INSERT INTO users (username, password_hash, role, auth_provider) VALUES (?, ?, ?, 'local')"
     ).run(username, hash, role ?? 'user');
 
     const user = db.prepare(
@@ -283,6 +283,15 @@ router.post(
     const user = db.prepare('SELECT * FROM users WHERE id = ?').get(req.user!.id) as User | undefined;
     if (!user) {
       res.status(404).json({ success: false, error: 'ユーザーが見つかりません' });
+      return;
+    }
+
+    // SSO 専用アカウントはパスワードを持たないため変更できない
+    if (!user.password_hash) {
+      res.status(400).json({
+        success: false,
+        error: 'SSO でログインしているアカウントのため、パスワードは変更できません。',
+      });
       return;
     }
 

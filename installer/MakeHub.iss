@@ -5,7 +5,7 @@
 ; ============================================================
 
 #define AppName      "Make HUB"
-#define AppVersion   "1.0.0"
+#define AppVersion   "1.1.0"
 #define AppPublisher "saltea-Giraffe"
 #define AppURL       "https://github.com/saltea-Giraffe/Make_hub"
 #define AppExeName   "MakeHub"
@@ -201,12 +201,13 @@ begin
   NSSMExec('set "{#ServiceName}" AppRotateFiles 1');
   NSSMExec('set "{#ServiceName}" AppRotateBytes 5242880');
 
-  // ファイアウォール: ポート3001をLAN内から許可（既存ルールは削除してから追加）
+  // ファイアウォール: HTTP(3001) と HTTPS(3443) をLAN内から許可
+  // （HTTPS は既定で無効だが、.env で有効にしたときに開け直さずに済むよう先に許可しておく）
   Exec(ExpandConstant('{sys}\netsh.exe'),
        'advfirewall firewall delete rule name="{#AppName}"',
        '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
   Exec(ExpandConstant('{sys}\netsh.exe'),
-       'advfirewall firewall add rule name="{#AppName}" dir=in action=allow protocol=TCP localport=3001',
+       'advfirewall firewall add rule name="{#AppName}" dir=in action=allow protocol=TCP localport=3001,3443',
        '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
 
   // 起動
@@ -260,6 +261,30 @@ begin
         Lines.Add('');
         Lines.Add('# CORS（開発環境のフロントエンドURLを許可する場合のみ設定）');
         Lines.Add('# FRONTEND_URL=http://localhost:5173');
+        Lines.Add('');
+        Lines.Add('# ─── HTTPS ───────────────────────────────────────────');
+        Lines.Add('# 下の行のコメントを外すと HTTPS で待ち受けます。');
+        Lines.Add('# 証明書を指定しない場合は自己署名証明書を自動生成します');
+        Lines.Add('# （通信は暗号化されますが、ブラウザに警告が表示されます）。');
+        Lines.Add('# 変更後はサービスの再起動が必要です。');
+        Lines.Add('# HTTPS_ENABLED=true');
+        Lines.Add('# HTTPS_PORT=3443');
+        Lines.Add('# HTTPS_REDIRECT=true');
+        Lines.Add('# 正規の証明書を使う場合:');
+        Lines.Add('# HTTPS_CERT_FILE=');
+        Lines.Add('# HTTPS_KEY_FILE=');
+        Lines.Add('');
+        Lines.Add('# ─── SSO (OIDC / SAML) ──────────────────────────────');
+        Lines.Add('# SSO を使う場合は、外部から見たこのサーバーのURLを設定してください。');
+        Lines.Add('# PUBLIC_URL=https://hub.example.com');
+        Lines.Add('# OIDC_ENABLED=true');
+        Lines.Add('# OIDC_ISSUER=');
+        Lines.Add('# OIDC_CLIENT_ID=');
+        Lines.Add('# OIDC_CLIENT_SECRET=');
+        Lines.Add('# SAML_ENABLED=true');
+        Lines.Add('# SAML_ENTRY_POINT=');
+        Lines.Add('# SAML_IDP_CERT=');
+        Lines.Add('# 詳しい設定項目は README を参照してください。');
         Lines.SaveToFile(EnvFile);
       finally
         Lines.Free;

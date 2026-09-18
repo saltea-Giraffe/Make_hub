@@ -1,11 +1,15 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { AuthProvider } from './contexts/AuthContext';
+import type { ReactNode } from 'react';
+import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { ToastProvider } from './contexts/ToastContext';
 import { ThemeProvider } from './contexts/ThemeContext';
 import Layout from './components/Layout';
 import ProtectedRoute from './components/ProtectedRoute';
+import LoadingScreen from './components/LoadingScreen';
 import HubPage from './pages/HubPage';
 import LoginPage from './pages/LoginPage';
+import SetupPage from './pages/SetupPage';
+import SsoCallbackPage from './pages/SsoCallbackPage';
 import AdminAppsPage from './pages/AdminAppsPage';
 import AdminCategoriesPage from './pages/AdminCategoriesPage';
 import AdminUsersPage from './pages/AdminUsersPage';
@@ -15,6 +19,24 @@ import AdminAccessLogPage from './pages/AdminAccessLogPage';
 import ChangePasswordPage from './pages/ChangePasswordPage';
 import ProfilePage from './pages/ProfilePage';
 
+/**
+ * 管理者が1人も居ない状態では、どの画面よりも先に初期セットアップを済ませてもらう。
+ */
+function RequireSetupComplete({ children }: { children: ReactNode }) {
+  const { needsSetup, isLoading } = useAuth();
+  if (isLoading) return <LoadingScreen />;
+  if (needsSetup) return <Navigate to="/setup" replace />;
+  return <>{children}</>;
+}
+
+/** セットアップ済みなら /setup は開けないようにする */
+function SetupRoute() {
+  const { needsSetup, isLoading } = useAuth();
+  if (isLoading) return <LoadingScreen />;
+  if (needsSetup === false) return <Navigate to="/" replace />;
+  return <SetupPage />;
+}
+
 export default function App() {
   return (
     <ThemeProvider>
@@ -22,11 +44,24 @@ export default function App() {
     <AuthProvider>
       <BrowserRouter>
         <Routes>
+          {/* 初期セットアップ（Layoutなし） */}
+          <Route path="/setup" element={<SetupRoute />} />
+
           {/* ログイン画面（Layoutなし） */}
           <Route path="/login" element={<LoginPage />} />
 
+          {/* SSO コールバック（Layoutなし） */}
+          <Route path="/sso/callback" element={<SsoCallbackPage />} />
+
           {/* Layoutあり */}
-          <Route path="/" element={<Layout />}>
+          <Route
+            path="/"
+            element={
+              <RequireSetupComplete>
+                <Layout />
+              </RequireSetupComplete>
+            }
+          >
             {/* HUBトップは誰でもアクセス可 */}
             <Route index element={<HubPage />} />
 
