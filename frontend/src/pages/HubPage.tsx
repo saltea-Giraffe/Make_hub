@@ -283,7 +283,7 @@ export default function HubPage() {
         <div className="flex items-center gap-2 overflow-x-auto sm:flex-wrap sm:overflow-visible -mx-4 px-4 sm:mx-0 sm:px-0 pb-1 sm:pb-0 mb-6">
           <button
             onClick={() => setActiveCat('all')}
-            className={`px-3.5 py-1.5 rounded-full text-sm font-medium border transition-colors ${
+            className={`flex-shrink-0 whitespace-nowrap px-3.5 py-2 sm:py-1.5 rounded-full text-sm font-medium border transition-colors ${
               activeCat === 'all'
                 ? 'bg-blue-600 text-white border-blue-600'
                 : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'
@@ -295,7 +295,7 @@ export default function HubPage() {
           {isAuthenticated && (
             <button
               onClick={() => setActiveCat('favorites')}
-              className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-sm font-medium border transition-colors ${
+              className={`flex-shrink-0 whitespace-nowrap flex items-center gap-1.5 px-3.5 py-2 sm:py-1.5 rounded-full text-sm font-medium border transition-colors ${
                 activeCat === 'favorites'
                   ? 'bg-pink-500 text-white border-pink-500'
                   : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'
@@ -312,7 +312,7 @@ export default function HubPage() {
               <button
                 key={cat.id}
                 onClick={() => setActiveCat(cat.id)}
-                className={`px-3.5 py-1.5 rounded-full text-sm font-medium border transition-colors ${
+                className={`flex-shrink-0 whitespace-nowrap px-3.5 py-2 sm:py-1.5 rounded-full text-sm font-medium border transition-colors ${
                   activeCat === cat.id
                     ? 'bg-blue-600 text-white border-blue-600'
                     : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'

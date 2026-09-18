@@ -187,7 +187,7 @@ export default function AppFormModal({ isOpen, app, onClose, onSaved }: Props) {
           <label className="block text-sm font-medium text-gray-700 mb-2">アイコン</label>
 
           {/* タブ切替 */}
-          <div className="flex gap-1 mb-3 bg-gray-100 p-1 rounded-lg w-fit">
+          <div className="flex flex-wrap gap-1 mb-3 bg-gray-100 p-1 rounded-lg w-full sm:w-fit">
             {(['emoji', 'url', 'upload', 'initial'] as const).map(tab => (
               <button
                 key={tab}
@@ -289,7 +289,7 @@ export default function AppFormModal({ isOpen, app, onClose, onSaved }: Props) {
         </div>
 
         {/* ─── カテゴリ・表示順 ──────────────────────────────── */}
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">カテゴリ</label>
             <select

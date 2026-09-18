@@ -146,7 +146,7 @@ export default function ProfilePage() {
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">アバター</label>
 
             {/* タブ切替 */}
-            <div className="flex gap-1 mb-3 bg-gray-100 dark:bg-gray-700 p-1 rounded-lg w-fit">
+            <div className="flex flex-wrap gap-1 mb-3 bg-gray-100 dark:bg-gray-700 p-1 rounded-lg w-full sm:w-fit">
               {(['emoji', 'url', 'upload', 'initial'] as const).map(tab => (
                 <button
                   key={tab}
